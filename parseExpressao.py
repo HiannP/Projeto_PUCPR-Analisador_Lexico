@@ -1,4 +1,5 @@
 import os
+import sys
 
 def parseExpressao(linha: str, _tokens_: list):
     """
@@ -126,5 +127,11 @@ def processar_arquivo_teste(nome_arquivo):
         print(f"Erro: O arquivo '{nome_arquivo}' não foi encontrado no caminho especificado.")
 
 if __name__ == "__main__":
-    # O arquivo .txt deve estar na mesma pasta que este script .py
-    processar_arquivo_teste("teste_lexico_1.txt")
+    if len(sys.argv) < 2:
+        print("Uso: python parseExpressao.py <nome_arquivo>")
+        sys.exit(1)
+
+    nome_arquivo = sys.argv[1]
+
+    with open(nome_arquivo, 'r', encoding='utf-8') as f:
+        processar_arquivo_teste(nome_arquivo)
