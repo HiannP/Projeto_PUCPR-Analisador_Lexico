@@ -136,7 +136,7 @@ class InterpretadorRPN:
 
     def executarExpressao(self, tokens: list):
         """
-        (NÃO FINALIZADO): Implementação da infraestrutura de pilha e operadores aritméticos.
+        Implementação da infraestrutura de pilha e operadores aritméticos.
         Garante a precisão de 64 bits (IEEE 754) nativa do float em Python.
         """
         pilha = []
@@ -144,12 +144,11 @@ class InterpretadorRPN:
         # Ignora parênteses, pois a execução RPN é baseada puramente na ordem da pilha
         tokens_uteis = [t for t in tokens if t not in ('(', ')')]
 
-        for token in tokens_uteis:
+        for idx, token in enumerate(tokens_uteis):
             # 1. Operadores Aritméticos Fundamentais
             if token in ('+', '-', '*', '/', '//', '%', '^'):
                 if len(pilha) < 2:
-                    # Proteção beta contra expressões malformadas
-                    continue
+                    raise IndexError(f"Erro: Operandos insuficientes para '{token}'.")
 
                 b = pilha.pop()  # Segundo operando
                 a = pilha.pop()  # Primeiro operando
@@ -161,28 +160,49 @@ class InterpretadorRPN:
                 elif token == '*':
                     pilha.append(a * b)
                 elif token == '/':
-                    # Proteção básica contra divisão por zero
-                    pilha.append(a / b if b != 0 else 0.0)
+                    if b == 0: raise ZeroDivisionError("Divisão real por zero.")
+                    pilha.append(a / b)
+                elif token == '//':
+                    if b == 0: raise ZeroDivisionError("Divisão inteira por zero.")
+                    pilha.append(float(int(a) // int(b)))
+                elif token == '%':
+                    if b == 0: raise ZeroDivisionError("Resto de divisão por zero.")
+                    pilha.append(float(int(a) % int(b)))
                 elif token == '^':
                     pilha.append(a ** b)
-                else:
-                    # Placeholder para operadores de divisão inteira e resto no próximo commit
-                    pilha.append(0.0)
 
             # 2. Comando de Histórico (RES) - Lógica de busca inicial
             elif token == "RES":
-                if pilha:
-                    n = int(pilha.pop())
-                    if 0 <= n < len(self.historico_resultados):
-                        # Recupera resultado anterior (0 = último, 1 = penúltimo)
-                        pilha.append(self.historico_resultados[-(n + 1)])
-                    else:
-                        pilha.append(0.0)  # Fallback para índice inválido
+                if len(pilha) < 1:
+                    raise IndexError("Erro: Pilha vazia para comando RES.")
+
+                n = int(pilha.pop())
+                # Verifica se o índice N existe no histórico (0 é o último, 1 o penúltimo...)
+                if 0 <= n < len(self.historico_resultados):
+                    valor_res = self.historico_resultados[-(n + 1)]
+                    pilha.append(valor_res)
+                else:
+                    raise IndexError(
+                        f"Erro: Histórico RES {n} não disponível (Tamanho: {len(self.historico_resultados)}).")
 
             # 3. Comando de Memória (MEM)
             elif token == "MEM":
-                # TODO: Implementar lógica de atribuição (V MEM) no próximo commit
-                pass
+                if len(pilha) < 1:
+                    raise IndexError("Erro: Pilha vazia para comando MEM.")
+
+                    # O valor a ser guardado é o topo atual da pilha
+                valor = pilha[-1]
+
+                # O identificador 'V' é o token imediatamente anterior ao 'MEM'
+                # Note: O interpretador já terá empilhado o valor de V (ou 0.0) no passo anterior.
+                # Precisamos recuperar o nome da variável na lista de tokens.
+                nome_variavel = tokens_uteis[idx - 1]
+
+                if nome_variavel.replace('.', '', 1).isdigit():
+                    raise ValueError(f"Erro: '{nome_variavel}' não é um identificador válido para MEM.")
+
+                self.memorias[nome_variavel] = valor
+                # O comando MEM mantém geralmente o valor na pilha para uso posterior na expressão
 
             # 4. Operandos e Variáveis
             else:
@@ -190,9 +210,10 @@ class InterpretadorRPN:
                     # Conversão para 64-bit float
                     pilha.append(float(token))
                 except ValueError:
-                    # Se não for número, tenta recuperar da memória
-                    # Se a variável não existir, inicia com 0.0
-                    pilha.append(self.memorias.get(token, 0.0))
+                    # Se não for número, trata como variável (identificador)
+                    # Se a variável não existir, inicia com 0.0 conforme convenção comum
+                    valor_var = self.memorias.get(token, 0.0)
+                    pilha.append(valor_var)
 
         # Define o resultado final e atualiza o histórico
         resultado_final = pilha[0] if pilha else 0.0
