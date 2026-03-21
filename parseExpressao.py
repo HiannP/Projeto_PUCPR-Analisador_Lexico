@@ -16,26 +16,16 @@ def parseExpressao(linha: str, _tokens_: list):
     def estado_inicial(): # Estado inicial do AFD, responsável por identificar o tipo de token a ser processado
         if contexto["pos"] >= tamanho: # Verifica se chegou ao final da linha
             return None
-        
+
         c = linha[contexto["pos"]] # Lê o caractere atual
 
         if c.isspace(): # Ignora espaços em branco
-            contexto["pos"] += 1
-            return estado_inicial
-        elif c == '(':
-            return estado_parentese_abre
-        elif c == ')':
-            return estado_parentese_fecha
-        elif c == '+':
-            return estado_adicao
-        elif c == '-':
-            return estado_subtracao
-        elif c == '*':
-            return estado_multiplicacao
-        elif c == '%':
-            return estado_resto
-        elif c == '^':
-            return estado_potenciacao
+            contexto["pos"] += 1 
+            return estado_inicial 
+        elif c in ['(', ')']:
+            return estado_parenteses
+        elif c in ['+', '-', '*', '%', '^']:
+            return estado_operador
         elif c == '/':
             return estado_divisao
         else: # Caractere não reconhecido
@@ -44,38 +34,13 @@ def parseExpressao(linha: str, _tokens_: list):
     
     # Estados de Símbolos Simples (Um Caractere)
 
-    def estado_parentese_abre(): # Adiciona o parêntese de abertura à lista de tokens
-        _tokens_.append('(')
+    def estado_parenteses(): # Processa parênteses
+        _tokens_.append(linha[contexto["pos"]]) 
         contexto["pos"] += 1
         return estado_inicial
 
-    def estado_parentese_fecha(): # Adiciona o parêntese de fechamento à lista de tokens
-        _tokens_.append(')')
-        contexto["pos"] += 1
-        return estado_inicial
-
-    def estado_adicao(): # Adiciona o operador de adição à lista de tokens
-        _tokens_.append('+')
-        contexto["pos"] += 1
-        return estado_inicial
-
-    def estado_subtracao(): # Adiciona o operador de subtração à lista de tokens
-        _tokens_.append('-')
-        contexto["pos"] += 1
-        return estado_inicial
-
-    def estado_multiplicacao(): # Adiciona o operador de multiplicação à lista de tokens
-        _tokens_.append('*')
-        contexto["pos"] += 1
-        return estado_inicial
-
-    def estado_resto(): # Adiciona o operador de resto à lista de tokens
-        _tokens_.append('%')
-        contexto["pos"] += 1
-        return estado_inicial
-
-    def estado_potenciacao(): # Adiciona o operador de potenciação à lista de tokens
-        _tokens_.append('^')
+    def estado_operador(): # Processa operadores aritméticos simples
+        _tokens_.append(linha[contexto["pos"]])
         contexto["pos"] += 1
         return estado_inicial
     
@@ -87,7 +52,7 @@ def parseExpressao(linha: str, _tokens_: list):
         
         # Olha o próximo caractere para decidir se é / (Divisão real) ou // (Divisão inteira)
         if contexto["pos"] >= tamanho:
-            _tokens_.append('/')
+            _tokens_.append('/') # Se não houver mais caracteres, é uma divisão real simples
             return None
             
         c = linha[contexto["pos"]]
@@ -102,8 +67,8 @@ def parseExpressao(linha: str, _tokens_: list):
 
     # Inicia o AFD no estado inicial
     estado_atual = estado_inicial
-    while estado_atual is not None: # Continua processando enquanto houver estados a serem avaliados
-        estado_atual = estado_atual()
+    while estado_atual is not None:
+        estado_atual = estado_atual() # Chama o estado atual e atualiza para o próximo estado retornado
 
     saldo = 0 # Variável para verificar o balanceamento de parênteses
     for t in _tokens_:
