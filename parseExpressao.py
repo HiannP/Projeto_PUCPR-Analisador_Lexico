@@ -1,4 +1,5 @@
 import os
+import sys
 
 def parseExpressao(linha: str, _tokens_: list):
     """
@@ -35,6 +36,8 @@ def parseExpressao(linha: str, _tokens_: list):
             return estado_resto
         elif c == '^':
             return estado_potenciacao
+        elif c == '/':
+            return estado_divisao
         else: # Caractere não reconhecido
             raise ValueError(f"Léxico: Caractere não reconhecido '{c}' na posição {contexto['pos']}")
         
@@ -76,6 +79,26 @@ def parseExpressao(linha: str, _tokens_: list):
         contexto["pos"] += 1
         return estado_inicial
     
+    
+    # Estados de Símbolos Complexos (Multiplos Caracteres)
+    
+    def estado_divisao():
+        contexto["pos"] += 1 
+        
+        # Olha o próximo caractere para decidir se é / (Divisão real) ou // (Divisão inteira)
+        if contexto["pos"] >= tamanho:
+            _tokens_.append('/')
+            return None
+            
+        c = linha[contexto["pos"]]
+        if c == '/':
+            _tokens_.append('//') # Divisão inteira
+            contexto["pos"] += 1  # Consome o segundo '/'
+            return estado_inicial
+        else:
+            _tokens_.append('/')  # Divisão real
+            return estado_inicial # Retorna sem consumir, pois o caractere pertence ao próximo token   
+
 
     # Inicia o AFD no estado inicial
     estado_atual = estado_inicial
@@ -125,6 +148,104 @@ def processar_arquivo_teste(nome_arquivo):
     except FileNotFoundError:
         print(f"Erro: O arquivo '{nome_arquivo}' não foi encontrado no caminho especificado.")
 
+# Aluno 2
+class InterpretadorRPN:
+    def __init__(self):
+        # Gerenciamento de variáveis (V MEM) e (MEM)
+        self.memorias = {}
+        # Histórico de resultados para o comando (N RES)
+        self.historico_resultados = []
+
+    def executarExpressao(self, tokens: list):
+        """
+        Implementação da infraestrutura de pilha e operadores aritméticos.
+        Garante a precisão de 64 bits (IEEE 754) nativa do float em Python.
+        """
+        pilha = []
+
+        # Ignora parênteses, pois a execução RPN é baseada puramente na ordem da pilha
+        tokens_uteis = [t for t in tokens if t not in ('(', ')')]
+
+        for idx, token in enumerate(tokens_uteis):
+            # 1. Operadores Aritméticos Fundamentais
+            if token in ('+', '-', '*', '/', '//', '%', '^'):
+                if len(pilha) < 2:
+                    raise IndexError(f"Erro: Operandos insuficientes para '{token}'.")
+
+                b = pilha.pop()  # Segundo operando
+                a = pilha.pop()  # Primeiro operando
+
+                if token == '+':
+                    pilha.append(a + b)
+                elif token == '-':
+                    pilha.append(a - b)
+                elif token == '*':
+                    pilha.append(a * b)
+                elif token == '/':
+                    if b == 0: raise ZeroDivisionError("Divisão real por zero.")
+                    pilha.append(a / b)
+                elif token == '//':
+                    if b == 0: raise ZeroDivisionError("Divisão inteira por zero.")
+                    pilha.append(float(int(a) // int(b)))
+                elif token == '%':
+                    if b == 0: raise ZeroDivisionError("Resto de divisão por zero.")
+                    pilha.append(float(int(a) % int(b)))
+                elif token == '^':
+                    pilha.append(a ** b)
+
+            # 2. Comando de Histórico (RES) - Lógica de busca inicial
+            elif token == "RES":
+                if len(pilha) < 1:
+                    raise IndexError("Erro: Pilha vazia para comando RES.")
+
+                n = int(pilha.pop())
+                # Verifica se o índice N existe no histórico (0 é o último, 1 o penúltimo...)
+                if 0 <= n < len(self.historico_resultados):
+                    valor_res = self.historico_resultados[-(n + 1)]
+                    pilha.append(valor_res)
+                else:
+                    raise IndexError(
+                        f"Erro: Histórico RES {n} não disponível (Tamanho: {len(self.historico_resultados)}).")
+
+            # 3. Comando de Memória (MEM)
+            elif token == "MEM":
+                if len(pilha) < 1:
+                    raise IndexError("Erro: Pilha vazia para comando MEM.")
+
+                    # O valor a ser guardado é o topo atual da pilha
+                valor = pilha[-1]
+
+                # O identificador 'V' é o token imediatamente anterior ao 'MEM'
+                # Note: O interpretador já terá empilhado o valor de V (ou 0.0) no passo anterior.
+                # Precisamos recuperar o nome da variável na lista de tokens.
+                nome_variavel = tokens_uteis[idx - 1]
+
+                if nome_variavel.replace('.', '', 1).isdigit():
+                    raise ValueError(f"Erro: '{nome_variavel}' não é um identificador válido para MEM.")
+
+                self.memorias[nome_variavel] = valor
+                # O comando MEM mantém geralmente o valor na pilha para uso posterior na expressão
+
+            # 4. Operandos e Variáveis
+            else:
+                try:
+                    # Conversão para 64-bit float
+                    pilha.append(float(token))
+                except ValueError:
+                    # Se não for número, trata como variável (identificador)
+                    # Se a variável não existir, inicia com 0.0 conforme convenção comum
+                    valor_var = self.memorias.get(token, 0.0)
+                    pilha.append(valor_var)
+
+        # Define o resultado final e atualiza o histórico
+        resultado_final = pilha[0] if pilha else 0.0
+        self.historico_resultados.append(resultado_final)
+        return resultado_final
+
 if __name__ == "__main__":
-    # O arquivo .txt deve estar na mesma pasta que este script .py
-    processar_arquivo_teste("teste_lexico_1.txt")
+    if len(sys.argv) < 2:
+        print("Uso: python parseExpressao.py <nome_arquivo>")
+        sys.exit(1)
+
+    nome_arquivo = sys.argv[1]
+    processar_arquivo_teste(nome_arquivo)
