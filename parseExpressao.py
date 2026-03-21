@@ -126,12 +126,83 @@ def processar_arquivo_teste(nome_arquivo):
     except FileNotFoundError:
         print(f"Erro: O arquivo '{nome_arquivo}' não foi encontrado no caminho especificado.")
 
+# Aluno 2
+class InterpretadorRPN:
+    def __init__(self):
+        # Gerenciamento de variáveis (V MEM) e (MEM)
+        self.memorias = {}
+        # Histórico de resultados para o comando (N RES)
+        self.historico_resultados = []
+
+    def executarExpressao(self, tokens: list):
+        """
+        (NÃO FINALIZADO): Implementação da infraestrutura de pilha e operadores aritméticos.
+        Garante a precisão de 64 bits (IEEE 754) nativa do float em Python.
+        """
+        pilha = []
+
+        # Ignora parênteses, pois a execução RPN é baseada puramente na ordem da pilha
+        tokens_uteis = [t for t in tokens if t not in ('(', ')')]
+
+        for token in tokens_uteis:
+            # 1. Operadores Aritméticos Fundamentais
+            if token in ('+', '-', '*', '/', '//', '%', '^'):
+                if len(pilha) < 2:
+                    # Proteção beta contra expressões malformadas
+                    continue
+
+                b = pilha.pop()  # Segundo operando
+                a = pilha.pop()  # Primeiro operando
+
+                if token == '+':
+                    pilha.append(a + b)
+                elif token == '-':
+                    pilha.append(a - b)
+                elif token == '*':
+                    pilha.append(a * b)
+                elif token == '/':
+                    # Proteção básica contra divisão por zero
+                    pilha.append(a / b if b != 0 else 0.0)
+                elif token == '^':
+                    pilha.append(a ** b)
+                else:
+                    # Placeholder para operadores de divisão inteira e resto no próximo commit
+                    pilha.append(0.0)
+
+            # 2. Comando de Histórico (RES) - Lógica de busca inicial
+            elif token == "RES":
+                if pilha:
+                    n = int(pilha.pop())
+                    if 0 <= n < len(self.historico_resultados):
+                        # Recupera resultado anterior (0 = último, 1 = penúltimo)
+                        pilha.append(self.historico_resultados[-(n + 1)])
+                    else:
+                        pilha.append(0.0)  # Fallback para índice inválido
+
+            # 3. Comando de Memória (MEM)
+            elif token == "MEM":
+                # TODO: Implementar lógica de atribuição (V MEM) no próximo commit
+                pass
+
+            # 4. Operandos e Variáveis
+            else:
+                try:
+                    # Conversão para 64-bit float
+                    pilha.append(float(token))
+                except ValueError:
+                    # Se não for número, tenta recuperar da memória
+                    # Se a variável não existir, inicia com 0.0
+                    pilha.append(self.memorias.get(token, 0.0))
+
+        # Define o resultado final e atualiza o histórico
+        resultado_final = pilha[0] if pilha else 0.0
+        self.historico_resultados.append(resultado_final)
+        return resultado_final
+
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Uso: python parseExpressao.py <nome_arquivo>")
         sys.exit(1)
 
     nome_arquivo = sys.argv[1]
-
-    with open(nome_arquivo, 'r', encoding='utf-8') as f:
-        processar_arquivo_teste(nome_arquivo)
+    processar_arquivo_teste(nome_arquivo)
