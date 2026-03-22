@@ -8,19 +8,19 @@ def parseExpressao(linha: str, _tokens_: list):
     _tokens_.clear() # Limpa resquícios de execuções anteriores
     
     # Dicionário mutável para controlar o estado da leitura
-    contexto = {"pos": 0, "lexema": ""} # Armazena a posição atual e o lexema em construção
+    contexto = {"p_atual": 0, "lexema": ""} # Armazena a posição atual e o lexema em construção
     tamanho = len(linha) # Armazena o tamanho da linha para evitar chamadas repetidas
 
     # Definição dos estados dos Autômatos Finitos Determinísticos (AFDs)
 
     def estado_inicial(): # Estado inicial do AFD, responsável por identificar o tipo de token a ser processado
-        if contexto["pos"] >= tamanho: # Verifica se chegou ao final da linha
+        if contexto["p_atual"] >= tamanho: # Verifica se chegou ao final da linha
             return None
 
-        c = linha[contexto["pos"]] # Lê o caractere atual
+        c = linha[contexto["p_atual"]] # Lê o caractere atual
 
         if c.isspace(): # Ignora espaços em branco
-            contexto["pos"] += 1 
+            contexto["p_atual"] += 1 
             return estado_inicial 
         elif c in ['(', ')']:
             return estado_parenteses
@@ -28,41 +28,61 @@ def parseExpressao(linha: str, _tokens_: list):
             return estado_operador
         elif c == '/':
             return estado_divisao
+        elif c.isalpha() and c.isupper():
+            contexto["lexema"] = c
+            contexto["p_atual"] += 1
+            return estado_identificador
         else: # Caractere não reconhecido
-            raise ValueError(f"Léxico: Caractere não reconhecido '{c}' na posição {contexto['pos']}")
+            raise ValueError(f"Léxico: Caractere não reconhecido '{c}' na posição {contexto['p_atual']}")
         
     
     # Estados de Símbolos Simples (Um Caractere)
 
     def estado_parenteses(): # Processa parênteses
-        _tokens_.append(linha[contexto["pos"]]) 
-        contexto["pos"] += 1
+        _tokens_.append(linha[contexto["p_atual"]]) 
+        contexto["p_atual"] += 1
         return estado_inicial
 
     def estado_operador(): # Processa operadores aritméticos simples
-        _tokens_.append(linha[contexto["pos"]])
-        contexto["pos"] += 1
+        _tokens_.append(linha[contexto["p_atual"]])
+        contexto["p_atual"] += 1
         return estado_inicial
     
     
     # Estados de Símbolos Complexos (Multiplos Caracteres)
     
     def estado_divisao():
-        contexto["pos"] += 1 
+        contexto["p_atual"] += 1 
         
         # Olha o próximo caractere para decidir se é / (Divisão real) ou // (Divisão inteira)
-        if contexto["pos"] >= tamanho:
+        if contexto["p_atual"] >= tamanho:
             _tokens_.append('/') # Se não houver mais caracteres, é uma divisão real simples
             return None
             
-        c = linha[contexto["pos"]]
+        c = linha[contexto["p_atual"]]
         if c == '/':
             _tokens_.append('//') # Divisão inteira
-            contexto["pos"] += 1  # Consome o segundo '/'
+            contexto["p_atual"] += 1  # Consome o segundo '/'
             return estado_inicial
         else:
             _tokens_.append('/')  # Divisão real
             return estado_inicial # Retorna sem consumir, pois o caractere pertence ao próximo token   
+
+    def estado_identificador():
+        if contexto["p_atual"] >= tamanho:
+            _tokens_.append(contexto["lexema"])
+            return None
+            
+        c = linha[contexto["p_atual"]]
+        if c.isalpha() and c.isupper(): # Permite apenas letras maiúsculas para identificadores
+            contexto["lexema"] += c
+            contexto["p_atual"] += 1
+            return estado_identificador
+        elif c.isspace() or c in '()': # Identificador termina com espaço ou parêntese
+            _tokens_.append(contexto["lexema"])
+            return estado_inicial
+        else:
+            raise ValueError(f"Léxico: Identificador inválido na posição {contexto['p_atual']}. Apenas letras maiúsculas permitidas.")
 
 
     # Inicia o AFD no estado inicial
