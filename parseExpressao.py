@@ -32,6 +32,10 @@ def parseExpressao(linha: str, _tokens_: list):
             contexto["lexema"] = c
             contexto["p_atual"] += 1
             return estado_identificador
+        elif c.isdigit():
+            contexto["lexema"] = c
+            contexto["p_atual"] += 1
+            return estado_num_inteiro
         else: # Caractere não reconhecido
             raise ValueError(f"Léxico: Caractere não reconhecido '{c}' na posição {contexto['p_atual']}")
         
@@ -83,7 +87,46 @@ def parseExpressao(linha: str, _tokens_: list):
             return estado_inicial
         else:
             raise ValueError(f"Léxico: Identificador inválido na posição {contexto['p_atual']}. Apenas letras maiúsculas permitidas.")
+        
+    def estado_num_inteiro():
+        if contexto["p_atual"] >= tamanho:
+            _tokens_.append(contexto["lexema"])
+            return None
+            
+        c = linha[contexto["p_atual"]]
+        if c.isdigit(): # Continua formando o número inteiro
+            contexto["lexema"] += c
+            contexto["p_atual"] += 1
+            return estado_num_inteiro
+        elif c == '.': # Se encontrar um ponto, transita para o estado de número decimal
+            contexto["lexema"] += c
+            contexto["p_atual"] += 1
+            return estado_num_decimal
+        elif c.isspace() or c in '()+-*/%^': # O número inteiro termina quando encontra um espaço ou um operador
+            _tokens_.append(contexto["lexema"])
+            return estado_inicial
+        else:
+            raise ValueError(f"Léxico: Número malformado na posição {contexto['p_atual']}. Encontrado '{c}'.")
 
+    def estado_num_decimal():
+        if contexto["p_atual"] >= tamanho:
+            _tokens_.append(contexto["lexema"])
+            return None
+            
+        c = linha[contexto["p_atual"]]
+        if c.isdigit(): # Continua formando o número decimal
+            contexto["lexema"] += c
+            contexto["p_atual"] += 1
+            return estado_num_decimal
+        elif c.isspace() or c in '()+-*/%^': # O número decimal termina quando encontra um espaço ou um operador
+            if contexto["lexema"].endswith('.'): # Verifica se o número decimal termina com um ponto, o que é inválido
+                 raise ValueError(f"Léxico: Número decimal malformado (termina com ponto) na posição {contexto['p_atual']}")
+            _tokens_.append(contexto["lexema"])
+            return estado_inicial
+        elif c == '.': # Se encontrar outro ponto, é um número decimal inválido
+             raise ValueError(f"Léxico: Múltiplos pontos decimais encontrados na posição {contexto['p_atual']}")
+        else:
+            raise ValueError(f"Léxico: Número decimal malformado na posição {contexto['p_atual']}. Encontrado '{c}'.")
 
     # Inicia o AFD no estado inicial
     estado_atual = estado_inicial
