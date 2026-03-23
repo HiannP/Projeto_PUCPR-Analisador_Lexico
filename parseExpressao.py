@@ -1,3 +1,5 @@
+# Aluno 1: Hiann W. Padilha
+
 import os
 import sys
 
