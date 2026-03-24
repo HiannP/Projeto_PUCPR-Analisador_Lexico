@@ -13,6 +13,7 @@ class InterpretadorRPN:
         Gera a Representação Intermediária (IR) da expressão para o Assembly.
         Delega a lógica de parênteses para manter o controle de sub-expressões aninhadas.
         """
+        tokens = self._tratar_parenteses(tokens)
         pilha = []
 
         for token in tokens:
@@ -48,13 +49,20 @@ class InterpretadorRPN:
 
                 n = pilha.pop()
 
-                if not isinstance(n, (int, float)):
-                    raise ValueError("RES requer índice numérico")
+                if not (isinstance(n, tuple) and n[0] == "CONST"):
+                    raise ValueError("RES requer número constante")
 
-                pilha.append(("RES", int(n)))
+                indice = int(n[1])
+
+                if indice >= len(self.historico_resultados):
+                    raise IndexError("RES fora do histórico")
+
+                referencia = self.historico_resultados[-(indice + 1)]
+
+                pilha.append(("RES", indice, referencia))
 
             # =========================
-            # COMANDO MEM
+            # COMANDO MEM (STORE)
             # =========================
             elif token == "MEM":
                 if len(pilha) < 2:
@@ -63,7 +71,7 @@ class InterpretadorRPN:
                 valor = pilha.pop()
                 var = pilha.pop()
 
-                if not isinstance(var, tuple) or var[0] != "VAR":
+                if not (isinstance(var, tuple) and var[0] == "VAR"):
                     raise ValueError("MEM requer identificador válido")
 
                 nome = var[1]
@@ -82,8 +90,11 @@ class InterpretadorRPN:
             # =========================
             # IDENTIFICADORES
             # =========================
+            elif self._is_identifier(token):
+                pilha.append(("VAR", token))
+
             else:
-                pilha.append(("LOAD", token))
+                raise ValueError(f"Token inválido: {token}")
 
         if len(pilha) != 1:
             raise ValueError("Expressão inválida: sobrou mais de um elemento na pilha")
@@ -95,9 +106,42 @@ class InterpretadorRPN:
 
         return resultado_ir
 
+    # =========================
+    # TRATAMENTO DE PARÊNTESES
+    # =========================
+    def _tratar_parenteses(self, tokens):
+        """
+        Remove parênteses e valida estrutura.
+        Como RPN já define ordem, os parênteses
+        são usados apenas para validação estrutural.
+        """
+
+        pilha = []
+
+        for token in tokens:
+            if token == "(":
+                pilha.append(token)
+
+            elif token == ")":
+                if not pilha:
+                    raise ValueError("Parênteses desbalanceados")
+                pilha.pop()
+
+        if pilha:
+            raise ValueError("Parênteses desbalanceados")
+
+        # Remove parênteses
+        return [t for t in tokens if t not in ("(", ")")]
+
+    # =========================
+    # UTILITÁRIOS
+    # =========================
     def _is_number(self, token: str):
         try:
             float(token)
             return True
         except:
             return False
+
+    def _is_identifier(self, token: str):
+        return token.isalpha() and token.isupper()
