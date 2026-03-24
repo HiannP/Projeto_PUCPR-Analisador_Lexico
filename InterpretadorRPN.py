@@ -13,14 +13,30 @@ class InterpretadorRPN:
         Gera a Representação Intermediária (IR) da expressão para o Assembly.
         Delega a lógica de parênteses para manter o controle de sub-expressões aninhadas.
         """
+        estrutura = self._parse_parenteses(tokens)
+
+        resultado_ir = self._executar_subexpressao(estrutura)
+
+        self.historico_resultados.append(resultado_ir)
+
+        return resultado_ir
+
+    def _executar_subexpressao(self, expr):
+        """
+        Implementa o tratamento de parênteses aninhados através de um executor recursivo.
+        """
         pilha = []
 
-        for token in tokens:
+        for token in expr:
+
+            # Subexpressão
+            if isinstance(token, list):
+                pilha.append(self._executar_subexpressao(token))
 
             # =========================
             # OPERADORES
             # =========================
-            if token in ('+', '-', '*', '/', '//', '%', '^'):
+            elif token in ('+', '-', '*', '/', '//', '%', '^'):
                 if len(pilha) < 2:
                     raise IndexError(f"Operandos insuficientes para '{token}'")
 
@@ -40,38 +56,51 @@ class InterpretadorRPN:
                 pilha.append((op_map[token], a, b))
 
             # =========================
-            # COMANDO RES
+            # RES
             # =========================
             elif token == "RES":
-                if len(pilha) < 1:
-                    raise IndexError("Erro: Pilha vazia para RES")
-
                 n = pilha.pop()
 
-                if not isinstance(n, (int, float)):
-                    raise ValueError("RES requer índice numérico")
+                if not (isinstance(n, tuple) and n[0] == "CONST"):
+                    raise ValueError("RES requer número constante")
 
-                pilha.append(("RES", int(n)))
+                indice = int(n[1])
+
+                if indice >= len(self.historico_resultados):
+                    raise IndexError("RES fora do histórico")
+
+                pilha.append(("RES", indice))
 
             # =========================
-            # COMANDO MEM
+            # MEM (corrigido)
             # =========================
             elif token == "MEM":
-                if len(pilha) < 2:
-                    raise IndexError("Erro: MEM requer variável e valor")
 
-                valor = pilha.pop()
-                var = pilha.pop()
+                # LOAD → (X MEM)
+                if len(pilha) == 1:
+                    var = pilha.pop()
 
-                if not isinstance(var, tuple) or var[0] != "VAR":
-                    raise ValueError("MEM requer identificador válido")
+                    if var[0] != "VAR":
+                        raise ValueError("MEM leitura requer identificador")
 
-                nome = var[1]
+                    pilha.append(("LOAD", var[1]))
 
-                ir = ("STORE", nome, valor)
-                self.memorias[nome] = ir
+                # STORE → (V X MEM)
+                elif len(pilha) == 2:
+                    valor = pilha.pop()
+                    var = pilha.pop()
 
-                pilha.append(ir)
+                    if var[0] != "VAR":
+                        raise ValueError("MEM escrita requer identificador")
+
+                    nome = var[1]
+                    ir = ("STORE", nome, valor)
+
+                    self.memorias[nome] = valor
+                    pilha.append(ir)
+
+                else:
+                    raise ValueError("Uso inválido de MEM")
 
             # =========================
             # NÚMEROS
@@ -82,22 +111,54 @@ class InterpretadorRPN:
             # =========================
             # IDENTIFICADORES
             # =========================
+            elif self._is_identifier(token):
+                pilha.append(("VAR", token))
+
             else:
-                pilha.append(("LOAD", token))
+                raise ValueError(f"Token inválido: {token}")
 
         if len(pilha) != 1:
-            raise ValueError("Expressão inválida: sobrou mais de um elemento na pilha")
+            raise ValueError("Expressão inválida")
 
-        resultado_ir = pilha[0]
+        return pilha[0]
 
-        # Guarda IR no histórico
-        self.historico_resultados.append(resultado_ir)
+    # =========================
+    # TRATAMENTO DE PARÊNTESES
+    # =========================
+    def _parse_parenteses(self, tokens):
+        stack = []
+        current = []
 
-        return resultado_ir
+        for token in tokens:
+            if token == "(":
+                stack.append(current)
+                new_list = []
+                current.append(new_list)
+                current = new_list
 
+            elif token == ")":
+                if not stack:
+                    raise ValueError("Parênteses desbalanceados")
+                current = stack.pop()
+
+            else:
+                current.append(token)
+
+        if stack:
+            raise ValueError("Parênteses desbalanceados")
+
+        # retorna a raiz (pode estar dentro de lista)
+        return current[0] if len(current) == 1 else current
+
+    # =========================
+    # UTILITÁRIOS
+    # =========================
     def _is_number(self, token: str):
         try:
             float(token)
             return True
         except:
             return False
+
+    def _is_identifier(self, token: str):
+        return token.isalpha() and token.isupper()
