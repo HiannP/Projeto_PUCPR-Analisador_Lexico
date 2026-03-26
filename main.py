@@ -14,6 +14,23 @@ from gerarAssembly import Gerar_Assembly
 from exibirResultados import exibirResultados
 
 
+def salvar_tokens(tokens_por_linha, nome_saida="tokens_ultima_execucao.txt"):
+    """
+    Salva em arquivo os tokens gerados em cada linha processada.
+    """
+    with open(nome_saida, "w", encoding="utf-8") as f:
+        for i, tokens in enumerate(tokens_por_linha, start=1):
+            f.write(f"Linha {i}: {' '.join(tokens)}\n")
+
+
+def salvar_assembly(codigo_assembly, nome_saida="ultimo_assembly_gerado.s"):
+    """
+    Salva em arquivo o último código Assembly gerado durante a execução.
+    """
+    with open(nome_saida, "w", encoding="utf-8") as f:
+        f.write(codigo_assembly)
+
+
 def processar_arquivo(nome_arquivo):
     """
     Faz o fluxo principal do programa:
@@ -22,6 +39,7 @@ def processar_arquivo(nome_arquivo):
     3. Interpreta os tokens
     4. Gera o Assembly correspondente
     5. Exibe os resultados ao final
+    6. Salva tokens e assembly em arquivos
     """
 
     # Instancia o gerador de Assembly
@@ -31,7 +49,6 @@ def processar_arquivo(nome_arquivo):
     interpretador = InterpretadorRPN()
 
     # Lê o conteúdo do arquivo de entrada
-    # Cada linha representa uma expressão a ser processada
     linhas = gerador.lerArquivo(nome_arquivo)
 
     # Se não houver linhas válidas, encerra a execução
@@ -42,6 +59,9 @@ def processar_arquivo(nome_arquivo):
     # Lista para armazenar os resultados processados de cada linha
     resultados = []
 
+    # Lista para armazenar os tokens de todas as linhas
+    tokens_por_linha = []
+
     # Percorre cada linha do arquivo, junto com seu número
     for numero_linha, linha in enumerate(linhas, start=1):
         # Lista que receberá os tokens gerados pela análise léxica
@@ -49,8 +69,10 @@ def processar_arquivo(nome_arquivo):
 
         try:
             # Faz a análise léxica da expressão da linha
-            # O resultado é salvo dentro da lista tokens
             parseExpressao(linha, tokens)
+
+            # Guarda cópia dos tokens da linha atual
+            tokens_por_linha.append(tokens.copy())
 
             # Interpreta os tokens e gera a estrutura intermediária da expressão
             resultado_ir = interpretador.executarExpressao(tokens)
@@ -75,6 +97,16 @@ def processar_arquivo(nome_arquivo):
     # Ao final do processamento de todas as linhas, exibe os resultados no terminal
     exibirResultados(resultados)
 
+    # Salva os tokens processados em arquivo
+    salvar_tokens(tokens_por_linha)
+
+    # Salva o assembly gerado em arquivo
+    salvar_assembly(gerador.codigo)
+
+    print("\nArquivos gerados:")
+    print("- tokens_ultima_execucao.txt")
+    print("- ultimo_assembly_gerado.s")
+
     # Retorna 0 indicando execução bem-sucedida
     return 0
 
@@ -86,8 +118,6 @@ def main():
     """
 
     # Verifica se o usuário passou exatamente 1 argumento além do nome do script
-    # Exemplo esperado:
-    # python main.py teste_lexico.txt
     if len(sys.argv) != 2:
         print("Uso: python main.py <arquivo_de_teste.txt>")
         sys.exit(1)
@@ -108,6 +138,5 @@ def main():
 
 
 # Garante que o programa só será executado diretamente
-# e não quando esse arquivo for apenas importado em outro módulo
 if __name__ == "__main__":
     main()
