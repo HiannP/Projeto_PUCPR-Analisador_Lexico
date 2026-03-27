@@ -162,3 +162,14 @@ __pow_done_6:
     POP {R0}
     LDR R1, =resultado_9
     STR R0, [R1]
+
+ Expressao 
+    LDR R0, =0
+    PUSH {R0}
+    @ RES 0 (float)
+    LDR R0, =resultado_0
+    VLDR S0, [R0]
+    VPUSH {S0}
+    VPOP {S0}
+    LDR R1, =resultado_10
+    VSTR S0, [R1]
