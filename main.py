@@ -1,3 +1,10 @@
+# Integrantes do grupo (ordem alfabética):
+# - Enzo Curcio Stival | GitHub: enzocstival
+# - Henrique de O. Godoy | GitHub: Henrique-G15
+# - Hiann W. Padilha | GitHub: HiannP
+# - Marcos P. Ruppel | GitHub: MarcosRuppel
+# Grupo no Canvas: 18 
+
 import os
 import sys
 
