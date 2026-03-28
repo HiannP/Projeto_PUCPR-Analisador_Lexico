@@ -15,7 +15,7 @@ from parseExpressao import parseExpressao
 from InterpretadorRPN import InterpretadorRPN
 
 # Importa a classe responsável por ler o arquivo e gerar o código Assembly
-from gerarAssembly import Gerar_Assembly
+from gerarAssembly import GerarAssembly
 
 # Importa a função que exibe os resultados finais no terminal
 from exibirResultados import exibirResultados
@@ -50,7 +50,7 @@ def processar_arquivo(nome_arquivo):
     """
 
     # Instancia o gerador de Assembly
-    gerador = Gerar_Assembly()
+    gerador = GerarAssembly()
 
     # Instancia o interpretador RPN
     interpretador = InterpretadorRPN()
@@ -88,7 +88,7 @@ def processar_arquivo(nome_arquivo):
             resultados.append(resultado_ir)
 
             # Gera o trecho Assembly correspondente aos tokens dessa linha
-            gerador.gerarAssembly(tokens)
+            gerador.gerarAssembly(resultado_ir)
 
             # Exibe no terminal que a linha foi processada com sucesso
             print(f"[OK] Linha {numero_linha}: {linha}")
@@ -108,7 +108,7 @@ def processar_arquivo(nome_arquivo):
     salvar_tokens(tokens_por_linha)
 
     # Salva o assembly gerado em arquivo
-    salvar_assembly(gerador.codigo)
+    salvar_assembly(gerador.gerar_codigo_final())
 
     print("\nArquivos gerados:")
     print("- tokens_ultima_execucao.txt")

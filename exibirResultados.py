@@ -6,7 +6,10 @@ def _formatar_ir(item):
 
     op = item[0]
 
-    if op == "CONST":
+    if op == "CONST_INT":
+        return f"{item[1]}"
+
+    if op == "CONST_FLOAT":
         return f"{item[1]:.1f}"
 
     if op == "VAR":
@@ -18,8 +21,8 @@ def _formatar_ir(item):
     if op == "STORE":
         return f"STORE({item[1]}, {_formatar_ir(item[2])})"
 
-    if op == "RES":
-        return f"RES({item[1]})"
+    if op == "OP":
+        return f"({_formatar_ir(item[2])} {item[1]} {_formatar_ir(item[3])})"
 
     if len(item) == 3:
         return f"{op}({_formatar_ir(item[1])}, {_formatar_ir(item[2])})"

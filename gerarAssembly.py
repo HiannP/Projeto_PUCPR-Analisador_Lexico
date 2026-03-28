@@ -1,408 +1,300 @@
 # Aluno 3 - Henrique de O. Godoy
 # Função gerarAssembly e Leitura de Arquivo — VERSÃO FINAL CORRIGIDA
 
-class Gerar_Assembly:
+class GerarAssembly:
     def __init__(self):
         self.codigo = ""
         self.historico = []
         self.memoria = {}
-        self.data_section = set()
+        self.data_section = []
         self.float_constants = {}
-        self.float_counter = 0
         self.stack = []
+        self.var_types = {}
+        self.label_counter = 0
+        self.data_labels_set = set()
 
-    # ─────────────────────────────────────────────
-    # Leitura do arquivo
-    # ─────────────────────────────────────────────
-    def lerArquivo(self, arquivo: str) -> list:
+    # =========================
+    # LEITURA DE ARQUIVO
+    # =========================
+    def lerArquivo(self, nome_arquivo):
         linhas = []
+
         try:
-            with open(arquivo, 'r') as f:
+            with open(nome_arquivo, "r", encoding="utf-8") as f:
                 for linha in f:
                     linha = linha.strip()
-                    if linha:
-                        linhas.append(linha)
+
+                    # Ignora linhas vazias
+                    if not linha:
+                        continue
+
+                    linhas.append(linha)
+
         except FileNotFoundError:
-            print(f"ERROR: Nao foi possivel abrir: {arquivo}")
-            return []
+            raise FileNotFoundError(f"Arquivo '{nome_arquivo}' não encontrado.")
+        except Exception as e:
+            raise Exception(f"Erro ao ler o arquivo: {e}")
+
         return linhas
 
-    # ─────────────────────────────────────────────
-    # Tokenização e parse de parenteses
-    # ─────────────────────────────────────────────
-    def tokenizar(self, linha: str) -> list:
-        linha = linha.replace("(", " ( ").replace(")", " ) ")
-        return linha.split()
-
-    def parse_parenteses(self, tokens):
-        stack = []
-        current = []
-
-        for token in tokens:
-            if token == "(":
-                stack.append(current)
-                new_list = []
-                current.append(new_list)
-                current = new_list
-
-            elif token == ")":
-                if not stack:
-                    raise ValueError("Parenteses desbalanceados")
-                current = stack.pop()
-
-            else:
-                current.append(token)
-
-        if stack:
-            raise ValueError("Parenteses desbalanceados")
-        return current[0] if len(current) == 1 else current
-
-    # ─────────────────────────────────────────────
-    # Helpers de tipagem
-    # ─────────────────────────────────────────────
-    def _is_number(self, token: str) -> bool:
-
-        try:
-            float(token)
-            return True
-        except ValueError:
-            return False
-
-    def _is_float(self, token: str) -> bool:
-        return self._is_number(token) and '.' in token
-
-    def _is_integer(self, token: str) -> bool:
-        return self._is_number(token) and '.' not in token
-
-    def _is_identifier(self, token: str) -> bool:
-        return token.isalpha() and token.isupper()
-
-    def _operandos_sao_float(self, a, b) -> bool:
-        float_types = {"CONST_FLOAT", "RESULT_FLOAT", "VAR_FLOAT"}
-        return a[0] in float_types or b[0] in float_types
-
-    # ─────────────────────────────────────────────
-    # Gera label unica para constante float na .data
-    # ─────────────────────────────────────────────
-    def _get_float_label(self, token: str) -> str:
-
-        if token not in self.float_constants:
-            label = f"__fc_{token.replace('.', '_').replace('-', 'neg')}"
-            self.float_constants[token] = label
-
-        return self.float_constants[token]
-
-    # ─────────────────────────────────────────────
-    # Geraçao do Assembly principal
-    # ─────────────────────────────────────────────
-    def gerarAssembly(self, tokens: list) -> str:
-
-        estrutura = self.parse_parenteses(tokens)
-        self.codigo += "\n Expressao \n"
+    # =========================
+    # GERAÇÃO PRINCIPAL
+    # =========================
+    def gerarAssembly(self, ir):
+        self.codigo += "\n    @ Expressao\n"
         self.stack = []
 
-        self._executar(estrutura)
+        self._executar(ir)
 
         if len(self.stack) != 1:
-            raise ValueError(
-                f"Expressao RPN inválida. Pilha com {len(self.stack)} elemento(s): {self.stack}"
-            )
+            raise ValueError("Expressão inválida no Assembly")
 
-        label_atual = f"resultado_{len(self.historico)}"
-        topo = self.stack[-1]
-        is_float_result = topo[0] in ("CONST_FLOAT", "RESULT_FLOAT", "VAR_FLOAT")
+        label = f"resultado_{len(self.historico)}"
+        topo = self.stack.pop()
 
-        if is_float_result:
-            #LDR R1 + VSTR em vez de VLDR direto
-            self.codigo += f"    VPOP {{S0}}\n"
-            self.codigo += f"    LDR R1, ={label_atual}\n"
-            self.codigo += f"    VSTR S0, [R1]\n"
-
+        if topo[0] == "FLOAT":
+            self.codigo += "    VPOP {D0}\n"
+            tipo = "float"
         else:
-            self.codigo += f"    POP {{R0}}\n"
-            self.codigo += f"    LDR R1, ={label_atual}\n"
-            self.codigo += f"    STR R0, [R1]\n"
+            self.codigo += "    POP {R0}\n"
+            tipo = "int"
 
-        self.historico.append((label_atual, "float" if is_float_result else "int"))
-        self.data_section.add((label_atual, "float" if is_float_result else "int"))
+        # Salvar resultado
+        self.codigo += f"    LDR R1, ={label}\n"
+
+        if tipo == "float":
+            self.codigo += "    VSTR D0, [R1]\n"
+        else:
+            self.codigo += "    STR R0, [R1]\n"
+
+        # Display (CPULATOR)
+        self.codigo += "    LDR R2, =0xFF200020\n"
+        if tipo == "float":
+            self.codigo += "    VMOV R0, S0\n"
+        self.codigo += "    STR R0, [R2]\n"
+
+        self.historico.append((label, tipo))
+
+        if label not in self.data_labels_set:
+            self.data_section.append((label, tipo))
+            self.data_labels_set.add(label)
 
         return self.codigo
 
-    # ─────────────────────────────────────────────
-    # Execução recursiva dos tokens
-    # ─────────────────────────────────────────────
-    def _executar(self, expr):
-        for token in expr:
+    # =========================
+    # EXECUTOR
+    # =========================
+    def _executar(self, node):
 
-            if isinstance(token, list):
-                self._executar(token)
+        # 🔥 SUPORTE A LISTA (compatível com Aluno 2)
+        if isinstance(node, list):
+            for sub in node:
+                self._executar(sub)
+            return
 
-            #Constante FLOAT
-            elif self._is_float(token):
-                #VLDR não suporta "=label" (literal pool)
-                #LDR R0 com o endereço, depois VLDR S0, [R0]
-                label = self._get_float_label(token)
-                self.codigo += f"    LDR R0, ={label}\n"
-                self.codigo += f"    VLDR S0, [R0]\n"
-                self.codigo += f"    VPUSH {{S0}}\n"
-                self.stack.append(("CONST_FLOAT", token))
+        if not isinstance(node, tuple):
+            raise ValueError("Formato inválido de IR")
 
-            #Constante INT
-            elif self._is_integer(token):
-                self.codigo += f"    LDR R0, ={token}\n"
-                self.codigo += f"    PUSH {{R0}}\n"
-                self.stack.append(("CONST_INT", token))
+        tipo = node[0]
 
-            #Variaveis
-            elif self._is_identifier(token) and token not in ("MEM", "RES"):
-                self.data_section.add((token, "int"))
-                self.codigo += f"    LDR R0, ={token}\n"
-                self.codigo += f"    LDR R0, [R0]\n"
-                self.codigo += f"    PUSH {{R0}}\n"
-                self.stack.append(("VAR", token))
+        # =========================
+        # CONSTANTES
+        # =========================
+        if tipo == "CONST_INT":
+            self.codigo += f"    LDR R0, ={node[1]}\n"
+            self.codigo += "    PUSH {R0}\n"
+            self.stack.append(("INT", None))
 
-            #Operadores
-            elif token in ('+', '-', '*', '/', '//', '%', '^'):
-                if len(self.stack) < 2:
-                    raise IndexError(
-                        f"Operandos insuficientes para '{token}'. Pilha: {self.stack}"
-                    )
+        elif tipo == "CONST_FLOAT":
+            label = self._get_float_label(node[1])
+            self.codigo += f"    LDR R0, ={label}\n"
+            self.codigo += "    VLDR D0, [R0]\n"
+            self.codigo += "    VPUSH {D0}\n"
+            self.stack.append(("FLOAT", None))
 
-                b = self.stack.pop()
-                a = self.stack.pop()
-                use_float = self._operandos_sao_float(a, b)
+        # =========================
+        # VAR → vira LOAD automaticamente
+        # =========================
+        elif tipo == "VAR":
+            self._executar(("LOAD", node[1]))
 
-                if use_float:
-                    self._converter_float_se_necessario(a, b)
+        elif tipo == "LOAD":
+            nome = node[1]
+            tipo_var = self.var_types.get(nome, "int")
 
-                    if token == '+':
-                        self.codigo += f"    VADD.F32 S0, S1, S0\n"
-                        self.codigo += f"    VPUSH {{S0}}\n"
-                        self.stack.append(("RESULT_FLOAT", "S0"))
+            self.codigo += f"    LDR R0, ={nome}\n"
 
-                    elif token == '-':
-                        self.codigo += f"    VSUB.F32 S0, S1, S0\n"
-                        self.codigo += f"    VPUSH {{S0}}\n"
-                        self.stack.append(("RESULT_FLOAT", "S0"))
+            if tipo_var == "float":
+                self.codigo += "    VLDR D0, [R0]\n"
+                self.codigo += "    VPUSH {D0}\n"
+                self.stack.append(("FLOAT", None))
+            else:
+                self.codigo += "    LDR R0, [R0]\n"
+                self.codigo += "    PUSH {R0}\n"
+                self.stack.append(("INT", None))
 
-                    elif token == '*':
-                        self.codigo += f"    VMUL.F32 S0, S1, S0\n"
-                        self.codigo += f"    VPUSH {{S0}}\n"
-                        self.stack.append(("RESULT_FLOAT", "S0"))
+        # =========================
+        # STORE
+        # =========================
+        elif tipo == "STORE":
+            nome = node[1]
+            valor = node[2]
 
-                    elif token == '/':
-                        self.codigo += f"    VDIV.F32 S0, S1, S0\n"
-                        self.codigo += f"    VPUSH {{S0}}\n"
-                        self.stack.append(("RESULT_FLOAT", "S0"))
+            self._executar(valor)
+            topo = self.stack.pop()
 
-                    elif token == '//':
-                        self.codigo += f"    VDIV.F32 S0, S1, S0\n"
-                        self.codigo += f"    VCVT.S32.F32 S0, S0\n"
-                        self.codigo += f"    VCVT.F32.S32 S0, S0\n"
-                        self.codigo += f"    VPUSH {{S0}}\n"
-                        self.stack.append(("RESULT_FLOAT", "S0"))
+            if topo[0] == "FLOAT":
+                self.var_types[nome] = "float"
 
-                    elif token == '%':
-                        self.codigo += f"    @ MOD float: S1 mod S0\n"
-                        self.codigo += f"    VDIV.F32 S2, S1, S0\n"
-                        self.codigo += f"    VCVT.S32.F32 S2, S2\n"
-                        self.codigo += f"    VCVT.F32.S32 S2, S2\n"
-                        self.codigo += f"    VMUL.F32 S2, S2, S0\n"
-                        self.codigo += f"    VSUB.F32 S0, S1, S2\n"
-                        self.codigo += f"    VPUSH {{S0}}\n"
-                        self.stack.append(("RESULT_FLOAT", "S0"))
+                if nome not in self.data_labels_set:
+                    self.data_section.append((nome, "float"))
+                    self.data_labels_set.add(nome)
 
-                    elif token == '^':
-
-                        #Powf devolve o resultado no R0
-                        #tem q usar VCVT pra converter o tipo, VMOV so copia bit cru
-                        #S1(base) e S0(exp) ja vem carregados da func de conversao
-                        self.codigo += f"    @ POW float: powf(S1, S0)\n"
-                        self.codigo += f"    VMOV R0, S1\n"
-                        self.codigo += f"    VMOV R1, S0\n"
-                        self.codigo += f"    BL powf\n"
-                        self.codigo += f"    VMOV S0, R0\n"
-                        self.codigo += f"    VPUSH {{S0}}\n"
-                        self.stack.append(("RESULT_FLOAT", "S0"))
-
-                else:
-                    #Oeracoes INTEGER
-                    self.codigo += f"    POP {{R1}}\n"
-                    self.codigo += f"    POP {{R0}}\n"
-
-                    if token == '+':
-                        self.codigo += f"    ADD R0, R0, R1\n"
-
-                    elif token == '-':
-                        self.codigo += f"    SUB R0, R0, R1\n"
-
-                    elif token == '*':
-                        self.codigo += f"    MUL R0, R0, R1\n"
-
-                    elif token in ('/', '//'):
-                        self.codigo += f"    SDIV R0, R0, R1\n"
-
-                    elif token == '%':
-                        self.codigo += f"    SDIV R2, R0, R1\n"
-                        self.codigo += f"    MUL R2, R2, R1\n"
-                        self.codigo += f"    SUB R0, R0, R2\n"
-
-                    elif token == '^':
-                        idx = len(self.historico)
-                        lbl_loop  = f"__pow_loop_{idx}"
-                        lbl_done  = f"__pow_done_{idx}"
-
-                        self.codigo += f"    @ POW int: R0 = R0 ^ R1 (loop inline)\n"
-                        self.codigo += f"    MOV R2, #1\n"
-                        self.codigo += f"    MOV R3, R1\n"
-                        self.codigo += f"    CMP R3, #0\n"
-                        self.codigo += f"    BEQ {lbl_done}\n"
-                        self.codigo += f"{lbl_loop}:\n"
-                        self.codigo += f"    MUL R2, R2, R0\n"
-                        self.codigo += f"    SUBS R3, R3, #1\n"
-                        self.codigo += f"    BNE {lbl_loop}\n"
-                        self.codigo += f"{lbl_done}:\n"
-                        self.codigo += f"    MOV R0, R2\n"
-
-                    self.codigo += f"    PUSH {{R0}}\n"
-                    self.stack.append(("RESULT_INT", "R0"))
-
-            #MEM
-            elif token == "MEM":
-                if len(self.stack) >= 2:
-                    valor = self.stack.pop()
-                    var   = self.stack.pop()
-
-                    if var[0] not in ("VAR",):
-                        raise ValueError("MEM escrita requer primeiro operando como identificador")
-
-                    nome = var[1]
-                    self.data_section.add((nome, "int"))
-                    is_float_val = valor[0] in ("CONST_FLOAT", "RESULT_FLOAT")
-
-                    self.codigo += f"    @ STORE {nome}\n"
-                    if is_float_val:
-                        self.codigo += f"    VPOP {{S0}}\n"
-                        self.codigo += f"    LDR R1, ={nome}\n"
-                        self.codigo += f"    VSTR S0, [R1]\n"
-                        self.codigo += f"    VPUSH {{S0}}\n"
-                        self.stack.append(("RESULT_FLOAT", "S0"))
-                    else:
-                        self.codigo += f"    POP {{R0}}\n"
-                        self.codigo += f"    LDR R1, ={nome}\n"
-                        self.codigo += f"    STR R0, [R1]\n"
-                        self.codigo += f"    PUSH {{R0}}\n"
-                        self.stack.append(("RESULT_INT", "R0"))
-
-                    self.memoria[nome] = valor
-
-                elif len(self.stack) == 1:
-                    var = self.stack.pop()
-                    if var[0] != "VAR":
-                        raise ValueError("MEM leitura requer identificador")
-                    nome = var[1]
-                    self.codigo += f"    @ LOAD {nome}\n"
-                    self.codigo += f"    LDR R0, ={nome}\n"
-                    self.codigo += f"    LDR R0, [R0]\n"
-                    self.codigo += f"    PUSH {{R0}}\n"
-                    self.stack.append(("RESULT_INT", "R0"))
-
-                else:
-                    raise ValueError("MEM requer pelo menos 1 operando na pilha")
-
-            #RES
-            elif token == "RES":
-                if len(self.stack) < 1:
-                    raise ValueError("RES requer índice na pilha")
-
-                indice_token = self.stack.pop()
-                if indice_token[0] != "CONST_INT":
-                    raise ValueError(f"RES requer número constante inteiro, recebeu: {indice_token}")
-
-                indice = int(float(indice_token[1]))
-                if indice >= len(self.historico):
-                    raise IndexError(
-                        f"RES fora do histórico: índice {indice}, histórico tem {len(self.historico)}"
-                    )
-
-                label, tipo = self.historico[indice]
-                self.codigo += f"    @ RES {indice} ({tipo})\n"
-                self.codigo += f"    LDR R0, ={label}\n"
-
-                if tipo == "float":
-                    self.codigo += f"    VLDR S0, [R0]\n"
-                    self.codigo += f"    VPUSH {{S0}}\n"
-                    self.stack.append(("RESULT_FLOAT", label))
-                else:
-                    self.codigo += f"    LDR R0, [R0]\n"
-                    self.codigo += f"    PUSH {{R0}}\n"
-                    self.stack.append(("RESULT_INT", label))
+                self.codigo += "    VPOP {D0}\n"
+                self.codigo += f"    LDR R1, ={nome}\n"
+                self.codigo += "    VSTR D0, [R1]\n"
+                self.codigo += "    VPUSH {D0}\n"
+                self.stack.append(("FLOAT", None))
 
             else:
-                raise ValueError(f"Token desconhecido: '{token}'")
+                self.var_types[nome] = "int"
 
-    # ─────────────────────────────────────────────
-    # Helper: converte operandos para float (S1=a, S0=b)
-    # ─────────────────────────────────────────────
-    def _converter_float_se_necessario(self, a, b):
-        float_types = {"CONST_FLOAT", "RESULT_FLOAT", "VAR_FLOAT"}
+                if nome not in self.data_labels_set:
+                    self.data_section.append((nome, "int"))
+                    self.data_labels_set.add(nome)
 
-        if b[0] in float_types:
-            self.codigo += f"    VPOP {{S0}}\n"
+                self.codigo += "    POP {R0}\n"
+                self.codigo += f"    LDR R1, ={nome}\n"
+                self.codigo += "    STR R0, [R1]\n"
+                self.codigo += "    PUSH {R0}\n"
+                self.stack.append(("INT", None))
+
+        # =========================
+        # OPERAÇÕES
+        # =========================
+        elif tipo == "OP":
+            op, a, b = node[1], node[2], node[3]
+
+            self._executar(a)
+            self._executar(b)
+
+            b_tipo = self.stack.pop()
+            a_tipo = self.stack.pop()
+
+            # FLOAT
+            if "FLOAT" in (a_tipo[0], b_tipo[0]):
+                self._to_float(a_tipo, b_tipo)
+
+                if op == '+':
+                    self.codigo += "    VADD.F64 D0, D1, D0\n"
+                elif op == '-':
+                    self.codigo += "    VSUB.F64 D0, D1, D0\n"
+                elif op == '*':
+                    self.codigo += "    VMUL.F64 D0, D1, D0\n"
+                elif op == '/':
+                    self.codigo += "    VDIV.F64 D0, D1, D0\n"
+                elif op == '^':
+                    self._pow_float()
+
+                self.codigo += "    VPUSH {D0}\n"
+                self.stack.append(("FLOAT", None))
+
+            # INT
+            else:
+                self.codigo += "    POP {R1}\n"
+                self.codigo += "    POP {R0}\n"
+
+                if op == '+':
+                    self.codigo += "    ADD R0, R0, R1\n"
+                elif op == '-':
+                    self.codigo += "    SUB R0, R0, R1\n"
+                elif op == '*':
+                    self.codigo += "    MUL R0, R0, R1\n"
+                elif op == '//':
+                    self.codigo += "    SDIV R0, R0, R1\n"
+                elif op == '%':
+                    self.codigo += "    SDIV R2, R0, R1\n"
+                    self.codigo += "    MUL R2, R2, R1\n"
+                    self.codigo += "    SUB R0, R0, R2\n"
+                elif op == '^':
+                    self._pow_int()
+
+                self.codigo += "    PUSH {R0}\n"
+                self.stack.append(("INT", None))
+
+    # =========================
+    # HELPERS
+    # =========================
+    def _to_float(self, a_tipo, b_tipo):
+        # b (topo da stack)
+        if b_tipo[0] == "FLOAT":
+            self.codigo += "    VPOP {D0}\n"
         else:
-            self.codigo += f"    POP {{R0}}\n"
-            self.codigo += f"    VMOV S0, R0\n"
-            self.codigo += f"    VCVT.F32.S32 S0, S0\n"
+            self.codigo += "    POP {R0}\n"
+            self.codigo += "    VMOV S0, R0\n"
+            self.codigo += "    VCVT.F64.S32 D0, S0\n"
 
-        if a[0] in float_types:
-            self.codigo += f"    VPOP {{S1}}\n"
+        # a (segundo da stack)
+        if a_tipo[0] == "FLOAT":
+            self.codigo += "    VPOP {D1}\n"
         else:
-            self.codigo += f"    POP {{R0}}\n"
-            self.codigo += f"    VMOV S1, R0\n"
-            self.codigo += f"    VCVT.F32.S32 S1, S1\n"
+            self.codigo += "    POP {R0}\n"
+            self.codigo += "    VMOV S1, R0\n"
+            self.codigo += "    VCVT.F64.S32 D1, S1\n"
 
-    # ─────────────────────────────────────────────
-    # Gera a seção .data
-    # ─────────────────────────────────────────────
-    def gerar_data_section(self) -> str:
+    def _pow_int(self):
+        self.label_counter += 1
+        lid = self.label_counter
+
+        self.codigo += "    MOV R2, #1\n"
+        self.codigo += f"loop_pow_{lid}:\n"
+        self.codigo += "    CMP R1, #0\n"
+        self.codigo += f"    BEQ end_pow_{lid}\n"
+        self.codigo += "    MUL R2, R2, R0\n"
+        self.codigo += "    SUB R1, R1, #1\n"
+        self.codigo += f"    B loop_pow_{lid}\n"
+        self.codigo += f"end_pow_{lid}:\n"
+        self.codigo += "    MOV R0, R2\n"
+
+    def _pow_float(self):
+        self.label_counter += 1
+        lid = self.label_counter
+
+        self.codigo += "    VCVT.S32.F64 S0, D0\n"
+        self.codigo += "    VMOV R1, S0\n"
+
+        self.codigo += "    VMOV.F64 D2, #1.0\n"
+
+        self.codigo += f"pow_loop_{lid}:\n"
+        self.codigo += "    CMP R1, #0\n"
+        self.codigo += f"    BEQ end_pow_{lid}\n"
+        self.codigo += "    VMUL.F64 D2, D2, D1\n"
+        self.codigo += "    SUB R1, R1, #1\n"
+        self.codigo += f"    B pow_loop_{lid}\n"
+
+        self.codigo += f"end_pow_{lid}:\n"
+        self.codigo += "    VMOV.F64 D0, D2\n"
+
+    def _get_float_label(self, val):
+        key = str(val)
+        if key not in self.float_constants:
+            label = f"f_{key.replace('.', '_').replace('-', 'neg')}"
+            self.float_constants[key] = label
+        return self.float_constants[key]
+
+    def gerar_data_section(self):
         ds = ".data\n"
 
-        for token, label in self.float_constants.items():
-            ds += f"    {label}: .float {token}\n"
+        for val, label in self.float_constants.items():
+            ds += f"    {label}: .double {val}\n"
 
-        for item in self.data_section:
-            nome, tipo = item if isinstance(item, tuple) else (item, "int")
+        for nome, tipo in self.data_section:
             if tipo == "float":
-                ds += f"    {nome}: .float 0.0\n"
+                ds += f"    {nome}: .double 0.0\n"
             else:
                 ds += f"    {nome}: .word 0\n"
 
         return ds
 
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Fluxo principal
-# ─────────────────────────────────────────────────────────────────────────────
-def executar_arquivo():
-    
-    gerador = Gerar_Assembly()
-    linhas  = gerador.lerArquivo("teste_lexico2.txt")
-
-    if not linhas:
-        return
-
-    for i, linha in enumerate(linhas):
-        try:
-            tokens = gerador.tokenizar(linha)
-            gerador.gerarAssembly(tokens)
-        except (ValueError, IndexError) as e:
-            print(f"[ERRO] Linha {i+1}: {linha}")
-            print(f"       → {e}")
-
-    print(gerador.gerar_data_section())
-    print(".text")
-    print(gerador.codigo)
-
-
-if __name__ == "__main__":
-    executar_arquivo()
+    def gerar_codigo_final(self):
+        return self.gerar_data_section() + "\n.text\n.global _start\n_start:\n" + self.codigo

@@ -1,18 +1,12 @@
 # Aluno 2 - Marcos P. Ruppel
-# Função executarExpressao e Gerenciamento de Memória
+# Função executarExpressao e Gerenciamento de Memória (VERSÃO CORRIGIDA)
 
 class InterpretadorRPN:
     def __init__(self):
-        # Gerenciamento de variáveis (V MEM) e (MEM)
         self.memorias = {}
-        # Histórico de resultados para o comando (N RES)
         self.historico_resultados = []
 
     def executarExpressao(self, tokens: list):
-        """
-        Gera a Representação Intermediária (IR) da expressão para o Assembly.
-        Delega a lógica de parênteses para manter o controle de sub-expressões aninhadas.
-        """
         estrutura = self._parse_parenteses(tokens)
 
         resultado_ir = self._executar_subexpressao(estrutura)
@@ -22,14 +16,13 @@ class InterpretadorRPN:
         return resultado_ir
 
     def _executar_subexpressao(self, expr):
-        """
-        Implementa o tratamento de parênteses aninhados através de um executor recursivo.
-        """
         pilha = []
 
         for token in expr:
 
-            # Subexpressão
+            # =========================
+            # SUBEXPRESSÃO
+            # =========================
             if isinstance(token, list):
                 pilha.append(self._executar_subexpressao(token))
 
@@ -43,60 +36,64 @@ class InterpretadorRPN:
                 b = pilha.pop()
                 a = pilha.pop()
 
-                op_map = {
-                    '+': "ADD",
-                    '-': "SUB",
-                    '*': "MUL",
-                    '/': "DIV",
-                    '//': "DIV_INT",
-                    '%': "MOD",
-                    '^': "POW"
-                }
-
-                pilha.append((op_map[token], a, b))
+                pilha.append(("OP", token, a, b))
 
             # =========================
             # RES
             # =========================
             elif token == "RES":
+                if len(pilha) < 1:
+                    raise ValueError("RES requer um operando")
+
                 n = pilha.pop()
 
-                if not (isinstance(n, tuple) and n[0] == "CONST"):
-                    raise ValueError("RES requer número constante")
+                if not isinstance(n, tuple) or n[0] != "CONST_INT":
+                    raise ValueError("RES requer número inteiro constante")
 
                 indice = int(n[1])
 
-                if indice >= len(self.historico_resultados):
+                if indice < 0 or indice >= len(self.historico_resultados):
                     raise IndexError("RES fora do histórico")
 
-                pilha.append(("RES", indice))
+                # CORREÇÃO: pegar N linhas anteriores corretamente
+                valor_ir = self.historico_resultados[-(indice + 1)]
+
+                pilha.append(valor_ir)
 
             # =========================
-            # MEM (corrigido)
+            # MEM
             # =========================
             elif token == "MEM":
 
-                # LOAD → (X MEM)
+                # LOAD → (VAR MEM)
                 if len(pilha) == 1:
                     var = pilha.pop()
 
-                    if var[0] != "VAR":
-                        raise ValueError("MEM leitura requer identificador")
+                    if not isinstance(var, tuple) or var[0] != "VAR":
+                        raise ValueError("MEM leitura requer identificador válido")
 
-                    pilha.append(("LOAD", var[1]))
+                    nome = var[1]
 
-                # STORE → (V X MEM)
+                    if nome in self.memorias:
+                        pilha.append(self.memorias[nome])
+                    else:
+                        pilha.append(("LOAD", nome))
+
+                # STORE → (VAL VAR MEM)
                 elif len(pilha) == 2:
                     valor = pilha.pop()
                     var = pilha.pop()
 
-                    if var[0] != "VAR":
-                        raise ValueError("MEM escrita requer identificador")
+                    if not isinstance(var, tuple) or var[0] != "VAR":
+                        raise ValueError("MEM escrita requer identificador válido")
 
                     nome = var[1]
+
                     ir = ("STORE", nome, valor)
 
+                    # guarda simbolicamente
                     self.memorias[nome] = valor
+
                     pilha.append(ir)
 
                 else:
@@ -106,7 +103,10 @@ class InterpretadorRPN:
             # NÚMEROS
             # =========================
             elif self._is_number(token):
-                pilha.append(("CONST", float(token)))
+                if '.' in token:
+                    pilha.append(("CONST_FLOAT", float(token)))
+                else:
+                    pilha.append(("CONST_INT", int(token)))
 
             # =========================
             # IDENTIFICADORES
@@ -123,7 +123,7 @@ class InterpretadorRPN:
         return pilha[0]
 
     # =========================
-    # TRATAMENTO DE PARÊNTESES
+    # PARÊNTESES (mantido como está)
     # =========================
     def _parse_parenteses(self, tokens):
         stack = []
@@ -147,8 +147,7 @@ class InterpretadorRPN:
         if stack:
             raise ValueError("Parênteses desbalanceados")
 
-        # retorna a raiz (pode estar dentro de lista)
-        return current[0] if len(current) == 1 else current
+        return current
 
     # =========================
     # UTILITÁRIOS
@@ -161,4 +160,7 @@ class InterpretadorRPN:
             return False
 
     def _is_identifier(self, token: str):
-        return token.isalpha() and token.isupper()
+        # CORREÇÃO: evitar conflito com keywords
+        if token in ("RES", "MEM"):
+            return False
+        return token.isalnum() and token[0].isalpha()
