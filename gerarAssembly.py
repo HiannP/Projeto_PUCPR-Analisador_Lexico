@@ -71,6 +71,7 @@ class GerarAssembly:
         self.codigo += "    LDR R2, =0xFF200020\n"
         if tipo == "float":
             self.codigo += "    VMOV R0, S0\n"
+        self.codigo += "    AND R0, R0, #0xF\n"
         self.codigo += "    STR R0, [R2]\n"
 
         self.historico.append((label, tipo))
@@ -121,6 +122,11 @@ class GerarAssembly:
         elif tipo == "LOAD":
             nome = node[1]
             tipo_var = self.var_types.get(nome, "int")
+
+            # GARANTE QUE A VARIÁVEL EXISTE NA DATA SECTION
+            if nome not in self.data_labels_set:
+                self.data_section.append((nome, tipo_var))
+                self.data_labels_set.add(nome)
 
             self.codigo += f"    LDR R0, ={nome}\n"
 
@@ -210,12 +216,42 @@ class GerarAssembly:
                     self.codigo += "    SUB R0, R0, R1\n"
                 elif op == '*':
                     self.codigo += "    MUL R0, R0, R1\n"
+                elif op == '/':
+                    self.label_counter += 1
+                    lid = self.label_counter
+
+                    self.codigo += "    MOV R2, #0\n"
+                    self.codigo += f"loop_div_{lid}:\n"
+                    self.codigo += "    CMP R0, R1\n"
+                    self.codigo += f"    BLT end_div_{lid}\n"
+                    self.codigo += "    SUB R0, R0, R1\n"
+                    self.codigo += "    ADD R2, R2, #1\n"
+                    self.codigo += f"    B loop_div_{lid}\n"
+                    self.codigo += f"end_div_{lid}:\n"
+                    self.codigo += "    MOV R0, R2\n"
                 elif op == '//':
-                    self.codigo += "    SDIV R0, R0, R1\n"
+                    self.label_counter += 1
+                    lid = self.label_counter
+
+                    self.codigo += "    MOV R2, #0\n"
+                    self.codigo += f"loop_div_{lid}:\n"
+                    self.codigo += "    CMP R0, R1\n"
+                    self.codigo += f"    BLT end_div_{lid}\n"
+                    self.codigo += "    SUB R0, R0, R1\n"
+                    self.codigo += "    ADD R2, R2, #1\n"
+                    self.codigo += f"    B loop_div_{lid}\n"
+                    self.codigo += f"end_div_{lid}:\n"
+                    self.codigo += "    MOV R0, R2\n"
                 elif op == '%':
-                    self.codigo += "    SDIV R2, R0, R1\n"
-                    self.codigo += "    MUL R2, R2, R1\n"
-                    self.codigo += "    SUB R0, R0, R2\n"
+                    self.label_counter += 1
+                    lid = self.label_counter
+
+                    self.codigo += f"loop_mod_{lid}:\n"
+                    self.codigo += "    CMP R0, R1\n"
+                    self.codigo += f"    BLT end_mod_{lid}\n"
+                    self.codigo += "    SUB R0, R0, R1\n"
+                    self.codigo += f"    B loop_mod_{lid}\n"
+                    self.codigo += f"end_mod_{lid}:\n"
                 elif op == '^':
                     self._pow_int()
 
@@ -297,4 +333,9 @@ class GerarAssembly:
         return ds
 
     def gerar_codigo_final(self):
-        return self.gerar_data_section() + "\n.text\n.global _start\n_start:\n" + self.codigo
+        return (
+                self.gerar_data_section()
+                + "\n.text\n.global _start\n_start:\n"
+                + self.codigo
+                + "\nend:\n    B end\n"
+        )

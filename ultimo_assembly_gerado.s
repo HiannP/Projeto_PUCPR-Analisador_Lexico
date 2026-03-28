@@ -1,23 +1,54 @@
+.data
+    f_3_5: .double 3.5
+    f_2_5: .double 2.5
+    f_5_0: .double 5.0
+    f_4_0: .double 4.0
+    f_2_0: .double 2.0
+    resultado_0: .word 0
+    resultado_1: .word 0
+    resultado_2: .word 0
+    resultado_3: .word 0
+    resultado_4: .word 0
+    resultado_5: .word 0
+    resultado_6: .word 0
+    resultado_7: .double 0.0
+    resultado_8: .double 0.0
+    resultado_9: .word 0
+    X: .word 0
+    resultado_10: .word 0
+    Y: .word 0
+    resultado_11: .word 0
+    resultado_12: .word 0
+    resultado_13: .word 0
+    resultado_14: .word 0
+    resultado_15: .word 0
+    resultado_16: .word 0
+    resultado_17: .double 0.0
 
- Expressao 
-    LDR R0, =__fc_3_0
-    VLDR S0, [R0]
-    VPUSH {S0}
-    LDR R0, =__fc_2_0
-    VLDR S0, [R0]
-    VPUSH {S0}
-    VPOP {S0}
-    VPOP {S1}
-    VADD.F32 S0, S1, S0
-    VPUSH {S0}
-    VPOP {S0}
-    LDR R1, =resultado_0
-    VSTR S0, [R1]
+.text
+.global _start
+_start:
 
- Expressao 
-    LDR R0, =10
+    @ Expressao
+    LDR R0, =3
     PUSH {R0}
     LDR R0, =4
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    ADD R0, R0, R1
+    PUSH {R0}
+    POP {R0}
+    LDR R1, =resultado_0
+    STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
+
+    @ Expressao
+    LDR R0, =10
+    PUSH {R0}
+    LDR R0, =2
     PUSH {R0}
     POP {R1}
     POP {R0}
@@ -26,8 +57,11 @@
     POP {R0}
     LDR R1, =resultado_1
     STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
 
- Expressao 
+    @ Expressao
     LDR R0, =6
     PUSH {R0}
     LDR R0, =7
@@ -39,137 +73,334 @@
     POP {R0}
     LDR R1, =resultado_2
     STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
 
- Expressao 
-    LDR R0, =__fc_8_0
-    VLDR S0, [R0]
-    VPUSH {S0}
-    LDR R0, =__fc_2_0
-    VLDR S0, [R0]
-    VPUSH {S0}
-    VPOP {S0}
-    VPOP {S1}
-    VDIV.F32 S0, S1, S0
-    VPUSH {S0}
-    VPOP {S0}
-    LDR R1, =resultado_3
-    VSTR S0, [R1]
-
- Expressao 
-    LDR R0, =9
+    @ Expressao
+    LDR R0, =20
     PUSH {R0}
-    LDR R0, =2
+    LDR R0, =5
     PUSH {R0}
     POP {R1}
     POP {R0}
-    SDIV R0, R0, R1
+    MOV R2, #0
+loop_div_1:
+    CMP R0, R1
+    BLT end_div_1
+    SUB R0, R0, R1
+    ADD R2, R2, #1
+    B loop_div_1
+end_div_1:
+    MOV R0, R2
+    PUSH {R0}
+    POP {R0}
+    LDR R1, =resultado_3
+    STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
+
+    @ Expressao
+    LDR R0, =20
+    PUSH {R0}
+    LDR R0, =6
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    MOV R2, #0
+loop_div_2:
+    CMP R0, R1
+    BLT end_div_2
+    SUB R0, R0, R1
+    ADD R2, R2, #1
+    B loop_div_2
+end_div_2:
+    MOV R0, R2
     PUSH {R0}
     POP {R0}
     LDR R1, =resultado_4
     STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
 
- Expressao 
-    LDR R0, =10
+    @ Expressao
+    LDR R0, =20
     PUSH {R0}
-    LDR R0, =3
+    LDR R0, =6
     PUSH {R0}
     POP {R1}
     POP {R0}
-    SDIV R2, R0, R1
-    MUL R2, R2, R1
-    SUB R0, R0, R2
+loop_mod_3:
+    CMP R0, R1
+    BLT end_mod_3
+    SUB R0, R0, R1
+    B loop_mod_3
+end_mod_3:
     PUSH {R0}
     POP {R0}
     LDR R1, =resultado_5
     STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
 
- Expressao 
+    @ Expressao
     LDR R0, =2
     PUSH {R0}
-    LDR R0, =3
+    LDR R0, =5
     PUSH {R0}
     POP {R1}
     POP {R0}
-    @ POW int: R0 = R0 ^ R1 (loop inline)
     MOV R2, #1
-    MOV R3, R1
-    CMP R3, #0
-    BEQ __pow_done_6
-__pow_loop_6:
+loop_pow_4:
+    CMP R1, #0
+    BEQ end_pow_4
     MUL R2, R2, R0
-    SUBS R3, R3, #1
-    BNE __pow_loop_6
-__pow_done_6:
+    SUB R1, R1, #1
+    B loop_pow_4
+end_pow_4:
     MOV R0, R2
     PUSH {R0}
     POP {R0}
     LDR R1, =resultado_6
     STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
 
- Expressao 
-    LDR R0, =__fc_2_0
-    VLDR S0, [R0]
-    VPUSH {S0}
-    LDR R0, =__fc_3_0
-    VLDR S0, [R0]
-    VPUSH {S0}
-    VPOP {S0}
-    VPOP {S1}
-    VADD.F32 S0, S1, S0
-    VPUSH {S0}
-    LDR R0, =__fc_4_0
-    VLDR S0, [R0]
-    VPUSH {S0}
-    LDR R0, =__fc_5_0
-    VLDR S0, [R0]
-    VPUSH {S0}
-    VPOP {S0}
-    VPOP {S1}
-    VADD.F32 S0, S1, S0
-    VPUSH {S0}
-    VPOP {S0}
-    VPOP {S1}
-    VMUL.F32 S0, S1, S0
-    VPUSH {S0}
-    VPOP {S0}
+    @ Expressao
+    LDR R0, =f_3_5
+    VLDR D0, [R0]
+    VPUSH {D0}
+    LDR R0, =f_2_5
+    VLDR D0, [R0]
+    VPUSH {D0}
+    VPOP {D0}
+    VPOP {D1}
+    VADD.F64 D0, D1, D0
+    VPUSH {D0}
+    VPOP {D0}
     LDR R1, =resultado_7
-    VSTR S0, [R1]
+    VSTR D0, [R1]
+    LDR R2, =0xFF200020
+    VMOV R0, S0
+    AND R0, R0, #0xF
+    STR R0, [R2]
 
- Expressao 
-    LDR R0, =X
-    LDR R0, [R0]
+    @ Expressao
+    LDR R0, =f_5_0
+    VLDR D0, [R0]
+    VPUSH {D0}
+    LDR R0, =2
     PUSH {R0}
-    LDR R0, =__fc_5_0
-    VLDR S0, [R0]
-    VPUSH {S0}
-    @ STORE X
-    VPOP {S0}
-    LDR R1, =X
-    VSTR S0, [R1]
-    VPUSH {S0}
-    VPOP {S0}
+    POP {R0}
+    VMOV S0, R0
+    VCVT.F64.S32 D0, S0
+    VPOP {D1}
+    VMUL.F64 D0, D1, D0
+    VPUSH {D0}
+    VPOP {D0}
     LDR R1, =resultado_8
-    VSTR S0, [R1]
+    VSTR D0, [R1]
+    LDR R2, =0xFF200020
+    VMOV R0, S0
+    AND R0, R0, #0xF
+    STR R0, [R2]
 
- Expressao 
-    LDR R0, =X
-    LDR R0, [R0]
+    @ Expressao
+    LDR R0, =2
     PUSH {R0}
-    @ LOAD X
-    LDR R0, =X
-    LDR R0, [R0]
+    LDR R0, =3
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    ADD R0, R0, R1
+    PUSH {R0}
+    LDR R0, =4
+    PUSH {R0}
+    LDR R0, =5
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    MUL R0, R0, R1
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    MUL R0, R0, R1
     PUSH {R0}
     POP {R0}
     LDR R1, =resultado_9
     STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
 
- Expressao 
-    LDR R0, =0
+    @ Expressao
+    LDR R0, =X
+    LDR R0, [R0]
     PUSH {R0}
-    @ RES 0 (float)
-    LDR R0, =resultado_0
-    VLDR S0, [R0]
-    VPUSH {S0}
-    VPOP {S0}
+    POP {R0}
     LDR R1, =resultado_10
-    VSTR S0, [R1]
+    STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
+
+    @ Expressao
+    LDR R0, =Y
+    LDR R0, [R0]
+    PUSH {R0}
+    POP {R0}
+    LDR R1, =resultado_11
+    STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
+
+    @ Expressao
+    LDR R0, =X
+    LDR R0, [R0]
+    PUSH {R0}
+    POP {R0}
+    LDR R1, =resultado_12
+    STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
+
+    @ Expressao
+    LDR R0, =X
+    LDR R0, [R0]
+    PUSH {R0}
+    POP {R0}
+    LDR R1, =resultado_13
+    STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
+
+    @ Expressao
+    LDR R0, =X
+    LDR R0, [R0]
+    PUSH {R0}
+    LDR R0, =X
+    LDR R0, [R0]
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    ADD R0, R0, R1
+    PUSH {R0}
+    POP {R0}
+    LDR R1, =resultado_14
+    STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
+
+    @ Expressao
+    LDR R0, =2
+    PUSH {R0}
+    LDR R0, =3
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    ADD R0, R0, R1
+    PUSH {R0}
+    LDR R0, =4
+    PUSH {R0}
+    LDR R0, =5
+    PUSH {R0}
+    LDR R0, =2
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    MUL R0, R0, R1
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    ADD R0, R0, R1
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    MUL R0, R0, R1
+    PUSH {R0}
+    POP {R0}
+    LDR R1, =resultado_15
+    STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
+
+    @ Expressao
+    LDR R0, =10
+    PUSH {R0}
+    LDR R0, =2
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    MOV R2, #0
+loop_div_5:
+    CMP R0, R1
+    BLT end_div_5
+    SUB R0, R0, R1
+    ADD R2, R2, #1
+    B loop_div_5
+end_div_5:
+    MOV R0, R2
+    PUSH {R0}
+    LDR R0, =3
+    PUSH {R0}
+    LDR R0, =1
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    ADD R0, R0, R1
+    PUSH {R0}
+    POP {R1}
+    POP {R0}
+    MUL R0, R0, R1
+    PUSH {R0}
+    POP {R0}
+    LDR R1, =resultado_16
+    STR R0, [R1]
+    LDR R2, =0xFF200020
+    AND R0, R0, #0xF
+    STR R0, [R2]
+
+    @ Expressao
+    LDR R0, =f_2_5
+    VLDR D0, [R0]
+    VPUSH {D0}
+    LDR R0, =f_3_5
+    VLDR D0, [R0]
+    VPUSH {D0}
+    VPOP {D0}
+    VPOP {D1}
+    VADD.F64 D0, D1, D0
+    VPUSH {D0}
+    LDR R0, =f_4_0
+    VLDR D0, [R0]
+    VPUSH {D0}
+    LDR R0, =f_2_0
+    VLDR D0, [R0]
+    VPUSH {D0}
+    VPOP {D0}
+    VPOP {D1}
+    VMUL.F64 D0, D1, D0
+    VPUSH {D0}
+    VPOP {D0}
+    VPOP {D1}
+    VDIV.F64 D0, D1, D0
+    VPUSH {D0}
+    VPOP {D0}
+    LDR R1, =resultado_17
+    VSTR D0, [R1]
+    LDR R2, =0xFF200020
+    VMOV R0, S0
+    AND R0, R0, #0xF
+    STR R0, [R2]
+
+end:
+    B end

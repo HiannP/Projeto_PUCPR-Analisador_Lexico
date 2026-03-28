@@ -92,7 +92,7 @@ class InterpretadorRPN:
                     ir = ("STORE", nome, valor)
 
                     # guarda simbolicamente
-                    self.memorias[nome] = valor
+                    self.memorias[nome] = ("LOAD", nome)
 
                     pilha.append(ir)
 
